@@ -20,7 +20,8 @@
 # limitations under the License.
 #
 
-use_inline_resources
+use_inline_resources if defined?(use_inline_resources)
+include ::Opscode::Ark::ProviderHelpers
 
 # From resources/default.rb
 # :install, :put, :dump, :cherry_pick, :install_with_make, :configure, :setup_py_build, :setup_py_install, :setup_py
@@ -49,8 +50,9 @@ action :install do
   end
 
   # unpack based on file extension
+  _unpack_command = unpack_command
   execute "unpack #{new_resource.release_file}" do
-    command unpack_command
+    command _unpack_command
     cwd new_resource.path
     environment new_resource.environment
     notifies :run, "execute[set owner on #{new_resource.path}]"
@@ -82,6 +84,7 @@ action :install do
     owner "root"
     group "root"
     mode "0755"
+    cookbook "ark"
     variables( :directory => "#{new_resource.path}/bin" )
     only_if { new_resource.append_env_path }
   end
@@ -92,7 +95,7 @@ action :install do
     block do
       ENV['PATH'] = bin_path + ':' + ENV['PATH']
     end
-    only_if{ ENV['PATH'].scan(bin_path).empty? }
+    only_if{ new_resource.append_env_path and ENV['PATH'].scan(bin_path).empty? }
   end
 end
 
@@ -241,7 +244,7 @@ action :install_with_make do
 
   execute "autogen #{new_resource.path}" do
     command "./autogen.sh"
-    only_if "test -f ./autogen.sh"
+    only_if { ::File.exist? "#{new_resource.path}/autogen.sh" }
     cwd new_resource.path
     environment new_resource.environment
     action :nothing
@@ -250,7 +253,7 @@ action :install_with_make do
 
   execute "configure #{new_resource.path}" do
     command "./configure #{new_resource.autoconf_opts.join(' ')}"
-    only_if "test -f ./configure"
+    only_if { ::File.exist? "#{new_resource.path}/configure" }
     cwd new_resource.path
     environment new_resource.environment
     action :nothing
@@ -306,7 +309,7 @@ action :configure do
 
   execute "autogen #{new_resource.path}" do
     command "./autogen.sh"
-    only_if "test -f ./autogen.sh"
+    only_if { ::File.exist? "#{new_resource.path}/autogen.sh" }
     cwd new_resource.path
     environment new_resource.environment
     action :nothing
@@ -315,7 +318,7 @@ action :configure do
 
   execute "configure #{new_resource.path}" do
     command "./configure #{new_resource.autoconf_opts.join(' ')}"
-    only_if "test -f ./configure"
+    only_if { ::File.exist? "#{new_resource.path}/configure" }
     cwd new_resource.path
     environment new_resource.environment
     action :nothing
